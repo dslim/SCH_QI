@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 공지 관리</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        .header { background-color: #ffffff; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
+        h2 { text-align: center; margin: 0 0 15px 0; font-size: 1.2rem; }
+        
+        /* 필터 영역 */
+        .date-filter { display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 12px; background: #f9f9f9; padding: 8px; border-radius: 8px; }
+        .date-filter input { border: 1px solid #ccc; border-radius: 4px; padding: 5px; font-size: 13px; }
+        .header-stats { display: flex; justify-content: center; gap: 8px; }
+        .stat-item { font-size: 11px; padding: 4px 8px; border-radius: 15px; background: #f0f0f0; color: #666; cursor: pointer; border: 1px solid #eee; }
+        .stat-item.active { font-weight: bold; transform: scale(1.05); }
+        .stat-item.total.active { background: #333; color: #fff; }
+        .stat-item.ing.active { background: #1976d2; color: #fff; }
+        .stat-item.done.active { background: #388e3c; color: #fff; }
+        .stat-item.drop.active { background: #d32f2f; color: #fff; }
+
+        .container { padding: 15px; }
+        
+        /* 카드 UI */
+        .card { 
+            background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; transition: background-color 0.2s;
+        }
+        .card:active { background-color: #f0f0f0; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .status { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+        .status.진행 { background: #e3f2fd; color: #1976d2; }
+        .status.완료 { background: #e8f5e9; color: #388e3c; }
+        .status.폐기 { background: #ffebee; color: #d32f2f; }
+        
+        .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #333; }
+        .content { font-size: 14px; color: #666; margin-bottom: 12px; line-height: 1.4; }
+
+        /* 수신 현황 (전체 수 포함) */
+        .receiver-stats {
+            display: flex; flex-wrap: wrap; gap: 8px; background-color: #f1f3f5;
+            padding: 10px; border-radius: 8px; margin-bottom: 12px;
+        }
+        .stat-badge { font-size: 12px; display: flex; align-items: center; gap: 4px; }
+        .stat-label { color: #666; font-size: 11px; }
+        .stat-value { font-weight: 700; color: #212529; }
+        .total-box { border-right: 1px solid #dee2e6; padding-right: 10px; margin-right: 2px; }
+
+        .footer-info { font-size: 11px; color: #999; display: flex; justify-content: space-between; border-top: 1px solid #f8f9fa; padding-top: 8px; }
+        .btn-register { position: fixed; bottom: 25px; right: 20px; background-color: #007bff; color: white; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 12px rgba(0,123,255,0.4); border: none; z-index: 999; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="header">
+        <h2>공지사항 관리</h2>
+        <div class="date-filter">
+            <span style="font-size:12px;">조회기간</span>
+            <input type="date" v-model="startDate">
+            <span>~</span>
+            <input type="date" v-model="endDate">
+        </div>
+        <div class="header-stats">
+            <span class="stat-item total" :class="{active: currentFilter === 'all'}" @click="currentFilter = 'all'">전체 {{ filteredByDate.length }}</span>
+            <span class="stat-item ing" :class="{active: currentFilter === '진행'}" @click="currentFilter = '진행'">진행 {{ counts.ing }}</span>
+            <span class="stat-item done" :class="{active: currentFilter === '완료'}" @click="currentFilter = '완료'">완료 {{ counts.done }}</span>
+            <span class="stat-item drop" :class="{active: currentFilter === '폐기'}" @click="currentFilter = '폐기'">폐기 {{ counts.drop }}</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div v-for="item in finalFilteredList" :key="item.id" class="card" @click="goToDetail(item.id)">
+            <div class="card-header">
+                <span style="font-size:11px; color:#aaa;">No. {{ item.id }}</span>
+                <span :class="['status', item.status]">{{ item.status }}</span>
+            </div>
+            <div class="title">{{ item.title }}</div>
+            <div class="content">{{ item.content }}</div>
+            
+            <div class="receiver-stats">
+                <div class="stat-badge total-box">
+                    <span class="stat-label">전체</span>
+                    <span class="stat-value">{{ item.totalCount }}</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-label">읽음</span>
+                    <span class="stat-value">{{ item.readCount }}</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-label">참여</span>
+                    <span class="stat-value" style="color: #1976d2;">{{ item.joinCount }}</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="stat-label">해결</span>
+                    <span class="stat-value" style="color: #388e3c;">{{ item.solveCount }}</span>
+                </div>
+            </div>
+
+            <div class="footer-info">
+                <span>등록자: {{ item.author }}</span>
+                <span>{{ item.date }}</span>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-register" @click="goToDetail()">+</button>
+</div>
+
+<script>
+    const { createApp, ref, computed, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const today = new Date().toISOString().split('T')[0];
+            const startDate = ref('');
+            const endDate = ref(today);
+            const currentFilter = ref('all');
+
+            // 이미지 데이터 기반으로 수신 현황(전체/읽음/참여/해결) 추가
+            const noticeList = ref([
+                { id: 5, title: '교육공지5', content: '교육 수료 안내입니다.', author: '이미자', date: '2026-01-05', status: '진행', totalCount: 100, readCount: 100, joinCount: 90, solveCount: 80 },
+                { id: 4, title: '교육공지4', content: '수료 확인 부탁드립니다.', author: '이미자', date: '2026-01-02', status: '완료', totalCount: 100, readCount: 100, joinCount: 100, solveCount: 100 },
+                { id: 3, title: '교육공지3', content: '공지 내용 확인 요망.', author: '이미자', date: '2025-12-20', status: '폐기', totalCount: 50, readCount: 45, joinCount: 20, solveCount: 5 },
+                { id: 2, title: '교육공지2', content: '새로운 교육 과정 오픈.', author: '이미자', date: '2025-12-15', status: '완료', totalCount: 150, readCount: 140, joinCount: 130, solveCount: 120 },
+                { id: 1, title: '교육공지1', content: '반갑습니다. 교육팀입니다.', author: '이미자', date: '2025-11-01', status: '진행', totalCount: 200, readCount: 180, joinCount: 150, solveCount: 90 }
+            ]);
+
+            onMounted(() => {
+                const d = new Date();
+                d.setMonth(d.getMonth() - 1);
+                startDate.value = d.toISOString().split('T')[0];
+            });
+
+            const filteredByDate = computed(() => {
+                return noticeList.value.filter(item => item.date >= startDate.value && item.date <= endDate.value);
+            });
+
+            const counts = computed(() => ({
+                ing: filteredByDate.value.filter(i => i.status === '진행').length,
+                done: filteredByDate.value.filter(i => i.status === '완료').length,
+                drop: filteredByDate.value.filter(i => i.status === '폐기').length
+            }));
+
+            const finalFilteredList = computed(() => {
+                if (currentFilter.value === 'all') return filteredByDate.value;
+                return filteredByDate.value.filter(item => item.status === currentFilter.value);
+            });
+
+            const goToDetail = (id) => {
+                window.location.href = id ? `noti_mng_detail.html?id=${id}` : 'noti_mng_detail.html';
+            };
+
+            return { startDate, endDate, currentFilter, counts, filteredByDate, finalFilteredList, goToDetail };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>공지사항 상세/등록</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background-color: #f5f7fa; margin: 0; padding: 0; }
+        .header { background-color: #ffffff; padding: 15px; border-bottom: 1px solid #ddd; display: flex; align-items: center; }
+        .back-btn { font-size: 20px; background: none; border: none; cursor: pointer; margin-right: 10px; }
+        h2 { margin: 0; font-size: 1.1rem; flex-grow: 1; text-align: center; margin-right: 30px; }
+        
+        .container { padding: 20px; padding-bottom: 40px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 14px; font-weight: bold; color: #555; margin-bottom: 8px; }
+        
+        input[type="text"], input[type="date"], select, textarea {
+            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px;
+        }
+        textarea { height: 120px; resize: none; }
+
+        .file-upload-wrapper { border: 1px dashed #bbb; background: #fff; padding: 15px; border-radius: 8px; text-align: center; }
+        .file-list { margin-top: 10px; list-style: none; padding: 0; }
+        .file-item { display: flex; align-items: center; justify-content: space-between; background: #f0f2f5; padding: 8px 12px; border-radius: 6px; margin-bottom: 5px; font-size: 13px; }
+        .file-name { color: #007bff; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .file-remove { color: #ff4d4d; margin-left: 10px; cursor: pointer; font-weight: bold; }
+
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        .btn { width: 100%; padding: 15px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-outline { background-color: white; color: #007bff; border: 1px solid #007bff; }
+        
+        input:disabled, textarea:disabled, select:disabled { background-color: #eee; color: #777; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="header">
+        <button class="back-btn" @click="goBack">←</button>
+        <h2>공지사항 {{ isEdit ? '상세' : '등록' }}</h2>
+    </div>
+
+    <div class="container">
+        <div class="form-group" v-if="isEdit">
+            <label>등록번호</label>
+            <input type="text" v-model="form.id" disabled>
+        </div>
+
+        <div class="form-group">
+            <label>제목</label>
+            <input type="text" v-model="form.title" placeholder="제목을 입력하세요">
+        </div>
+
+        <div class="form-group">
+            <label>내용</label>
+            <textarea v-model="form.content" placeholder="공지 내용을 입력하세요"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>첨부파일</label>
+            <div class="file-upload-wrapper">
+                <input type="file" id="fileInput" @change="handleFileUpload" style="display: none" multiple>
+                <button type="button" @click="triggerFileInput" style="background: #fff; border: 1px solid #ccc; padding: 5px 10px; border-radius: 4px; font-size: 13px;">파일 선택</button>
+                <div style="font-size: 11px; color: #888; margin-top: 5px;">최대 3개까지 업로드 가능</div>
+            </div>
+            
+            <ul class="file-list">
+                <li v-for="(file, index) in files" :key="index" class="file-item">
+                    <a :href="file.url" class="file-name" target="_blank">{{ file.name }}</a>
+                    <span class="file-remove" @click="removeFile(index)">×</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="form-group">
+            <label>상태</label>
+            <select v-model="form.status">
+                <option value="진행">진행</option>
+                <option value="완료">완료</option>
+                <option value="폐기">폐기</option>
+            </select>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-outline" @click="goToReceiver">
+                {{ isEdit ? '수신인 현황' : '수신인 설정' }}
+            </button>
+            <button class="btn btn-primary" @click="saveNotice">{{ isEdit ? '저장하기' : '등록하기' }}</button>
+            <button class="btn btn-secondary" @click="goBack">취소</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const isEdit = ref(false);
+            const files = ref([]);
+            const form = ref({
+                id: '', title: '', content: '', status: '진행', author: '관리자', date: new Date().toISOString().split('T')[0]
+            });
+
+            onMounted(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const id = urlParams.get('id');
+                if (id) {
+                    isEdit.value = true;
+                    // 가상 데이터 로드 로직
+                    form.value.id = id;
+                    form.value.title = "샘플 공지사항입니다.";
+                    form.value.content = "이전에 등록된 공지사항 상세 내용입니다.";
+                    files.value = [
+                        { name: '교육자료_v1.pdf', url: '#' },
+                        { name: '참석자명단.xlsx', url: '#' }
+                    ];
+                }
+            });
+
+            const triggerFileInput = () => {
+                document.getElementById('fileInput').click();
+            };
+
+            const handleFileUpload = (event) => {
+                const selectedFiles = Array.from(event.target.files);
+                selectedFiles.forEach(file => {
+                    files.value.push({
+                        name: file.name,
+                        url: URL.createObjectURL(file)
+                    });
+                });
+            };
+
+            const removeFile = (index) => {
+                files.value.splice(index, 1);
+            };
+
+            // 수신인 설정/현황 이동 로직
+            const goToReceiver = () => {
+                const idParam = form.value.id ? `?id=${form.value.id}` : '';
+                if (isEdit.value) {
+                    // 상세보기 시: 수신인 현황 페이지로
+                    window.location.href = `receiver_state.html${idParam}`;
+                } else {
+                    // 신규 등록 시: 수신인 설정 페이지로
+                    window.location.href = `set_receiver.html${idParam}`;
+                }
+            };
+
+            const saveNotice = () => {
+                alert('저장되었습니다.');
+                window.location.href = 'noti_mng_list.html';
+            };
+
+            const goBack = () => window.history.back();
+
+            return {
+                isEdit, form, files, 
+                triggerFileInput, handleFileUpload, removeFile, 
+                goToReceiver, saveNotice, goBack
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

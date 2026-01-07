@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수신인 설정</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background-color: #f5f7fa; margin: 0; padding: 0; }
+        .header { background-color: #ffffff; padding: 15px; border-bottom: 1px solid #ddd; display: flex; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .back-btn { font-size: 20px; background: none; border: none; cursor: pointer; margin-right: 10px; }
+        h2 { margin: 0; font-size: 1.1rem; flex-grow: 1; text-align: center; margin-right: 30px; }
+        
+        .container { padding: 15px; padding-bottom: 80px; }
+        
+        /* 부서별 그룹 스타일 */
+        .dept-group { background: #fff; border-radius: 10px; margin-bottom: 15px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .dept-header { padding: 15px; background: #f8f9fa; display: flex; align-items: center; border-bottom: 1px solid #eee; }
+        .dept-title { font-weight: bold; flex-grow: 1; font-size: 15px; }
+        
+        /* 사용자 리스트 (그리드 레이아웃) */
+        .user-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 15px; }
+        .user-item { display: flex; align-items: center; gap: 5px; font-size: 14px; }
+        
+        /* 체크박스 커스텀 */
+        input[type="checkbox"] { width: 18px; height: 18px; accent-color: #007bff; }
+
+        /* 하단 고정 버튼 */
+        .footer-actions { position: fixed; bottom: 0; left: 0; right: 0; padding: 15px; background: #fff; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 15px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-confirm { background-color: #007bff; color: white; }
+        .btn-cancel { background-color: #6c757d; color: white; }
+
+        .count-badge { background: #007bff; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 10px; margin-left: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="header">
+        <button class="back-btn" @click="goBack">←</button>
+        <h2>수신인 설정 <span class="count-badge" v-if="selectedUsers.length > 0">{{ selectedUsers.length }}</span></h2>
+    </div>
+
+    <div class="container">
+        <div v-for="(users, dept) in departmentData" :key="dept" class="dept-group">
+            <div class="dept-header">
+                <input type="checkbox" :id="dept" @change="toggleDept(dept, $event)" :checked="isAllSelected(dept)">
+                <label :for="dept" class="dept-title" style="margin-left: 10px;">{{ dept }}</label>
+                <span style="font-size: 12px; color: #888;">{{ users.length }}명</span>
+            </div>
+            
+            <div class="user-grid">
+                <div v-for="user in users" :key="user" class="user-item">
+                    <input type="checkbox" :id="user" :value="user" v-model="selectedUsers">
+                    <label :for="user">{{ user }}</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-actions">
+        <button class="btn btn-cancel" @click="goBack">취소</button>
+        <button class="btn btn-confirm" @click="confirmSelection">선택 완료</button>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref } = Vue;
+
+    createApp({
+        setup() {
+            // 이미지 b8ccfd.png 데이터 반영
+            const departmentData = ref({
+                "내과계진료지원": ["이름1", "이름2", "이름3", "이름4", "이름5", "이름6", "이름7", "이름8", "이름9", "이름10", "이름11", "이름12", "이름13", "이름14"],
+                "특수계진료지원": ["이름15", "이름16", "이름17", "이름18", "이름19", "이름20", "이름21", "이름22", "이름23", "이름24", "이름25", "이름26", "이름27"],
+                "외과계진료지원": ["이름28", "이름29", "이름30", "이름31", "이름32", "이름33", "이름34", "이름35", "이름36", "이름37", "이름38", "이름39", "이름40", "이름41"]
+            });
+
+            const selectedUsers = ref([]);
+
+            // 부서 전체 선택/해제
+            const toggleDept = (dept, event) => {
+                const users = departmentData.value[dept];
+                if (event.target.checked) {
+                    users.forEach(user => {
+                        if (!selectedUsers.value.includes(user)) {
+                            selectedUsers.value.push(user);
+                        }
+                    });
+                } else {
+                    selectedUsers.value = selectedUsers.value.filter(user => !users.includes(user));
+                }
+            };
+
+            // 해당 부서가 모두 선택되었는지 확인
+            const isAllSelected = (dept) => {
+                const users = departmentData.value[dept];
+                return users.every(user => selectedUsers.value.includes(user));
+            };
+
+            const confirmSelection = () => {
+                if (selectedUsers.value.length === 0) {
+                    alert('수신인을 한 명 이상 선택해주세요.');
+                    return;
+                }
+                alert(`${selectedUsers.value.length}명이 선택되었습니다.`);
+                window.history.back(); // 이전 페이지(상세페이지)로 이동
+            };
+
+            const goBack = () => window.history.back();
+
+            return {
+                departmentData, selectedUsers,
+                toggleDept, isAllSelected, confirmSelection, goBack
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

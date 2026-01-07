@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Login</title>
+    <style>
+        /* 기본 스타일 초기화 및 모바일 최적화 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            width: 90%;
+            max-width: 400px;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box; /* 패딩 포함 너비 계산 */
+            font-size: 16px; /* 모바일 줌 방지용 최소 크기 */
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:active {
+            background-color: #0056b3;
+        }
+
+        .error-msg {
+            color: #ff4d4d;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <h2>LOGIN</h2>
+    <form id="loginForm">
+        <div class="input-group">
+            <input type="text" id="user_id" placeholder="아이디를 입력하세요" required>
+        </div>
+        <div class="input-group">
+            <input type="password" id="password" placeholder="비밀번호를 입력하세요" required>
+        </div>
+        <button type="submit">로그인</button>
+        <p id="errorMessage" class="error-msg">아이디를 확인해주세요.</p>
+    </form>
+</div>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // 폼 제출 방지
+
+        const userId = document.getElementById('user_id').value;
+        const errorMsg = document.getElementById('errorMessage');
+
+        if (userId === "admin") {
+            // 1. admin 인 경우
+            window.location.href = "noti_mng_list.html";
+        } else if (userId === "user") {
+            // 2. user 인 경우
+            window.location.href = "recv_noti_list.html";
+        } else {
+            // 그 외의 경우 에러 메시지 출력
+            errorMsg.style.display = "block";
+            errorMsg.innerText = "등록되지 않은 사용자입니다.";
+        }
+    });
+</script>
+
+</body>
+</html>
