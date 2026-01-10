@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>볼링팀점수 계산기 - 모바일 UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .sticky-footer { position: sticky; bottom: 0; left: 0; right: 0; }
+        header { top: 0; left: 0; right: 0; z-index: 10; height: 100px; }
+        main { padding-top: 70px;}
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<div id="app">
+    <div class="max-w-md mx-auto min-h-screen flex flex-col">
+        <header class="bg-black text-white p-4 shadow-md text-center" style="height: 70px;">
+            <h1 class="text-3xl font-bold">B.LAB</h1>
+        </header>
+
+        <main class="flex-1 p-8 pb-32">
+            <div v-for="(player, index) in players" :key="index" 
+                 class="bg-white rounded-xl shadow-sm mb-4 border border-gray-200 overflow-hidden">
+                
+                <div class="flex justify-between items-center bg-gray-50 px-4 py-2 border-b">
+                    <span class="font-bold text-xl text-gray-700">{{ player.name }}</span>
+                    <div class="flex gap-2">
+                        <button @click="player.team = '광'" 
+                                :class="player.team === '광' ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600'"
+                                class="px-3 py-1 rounded-full text-x font-bold transition">광</button>
+                        <button @click="player.team = '피'" 
+                                :class="player.team === '피' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'"
+                                class="px-3 py-1 rounded-full text-x font-bold transition">피</button>
+                        <button @click="player.team = '띠'" 
+                                :class="player.team === '띠' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'"
+                                class="px-3 py-1 rounded-full text-x font-bold transition">띠</button>
+                    </div>
+                </div>
+
+                <div class="p-4 grid grid-cols-3 gap-3">
+                    <div class="flex flex-col">
+                        <label class="text-x text-black-400 uppercase mb-1">핸디</label>
+                        <input type="number" v-model.number="player.handicap" 
+                               @focus="selectInput"
+                               class="text-2xl w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-center focus:ring-2 focus:ring-blue-400 outline-none" placeholder="0">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-x text-black-400 uppercase mb-1 text-blue-500">점수입력</label>
+                        <input type="number" v-model.number="player.score" 
+                               @focus="selectInput"
+                               class="text-2xl w-full bg-blue-50 border border-blue-100 rounded-lg p-2 text-center focus:ring-2 focus:ring-blue-400 outline-none font-bold text-blue-700" placeholder="0">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-x text-black-400 uppercase mb-1">올카바</label>
+                        <input type="number" v-model.number="player.allCover" 
+                               @focus="selectInput"
+                               class="text-2xl w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-center focus:ring-2 focus:ring-blue-400 outline-none" placeholder="0">
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="sticky-footer bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] border-t border-gray-200">
+            <div class="p-3 bg-gray-50 text-[14px] border-b border-gray-100">
+                <div v-for="team in ['광', '피', '띠']" :key="team" class="mb-1 flex">
+                    <span class="font-bold w-10 shrink-0" :class="team === '광' ? 'text-orange-600' : 'text-orange-600'">{{ team }}팀:</span>
+                    <span class="text-gray-600 leading-tight">
+                        <template v-for="(p, idx) in getTeamPlayers(team)" :key="idx">
+                            {{ p.name }}({{ (p.handicap||0) + (p.score||0) + (p.allCover||0) }})<span v-if="idx < getTeamPlayers(team).length - 1">, </span>
+                        </template>
+                        <span v-if="getTeamPlayers(team).length === 0" class="text-gray-300 italic">선수 없음</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 flex justify-around items-center">
+                <div class="text-center">
+                    <p class="text-xl font-bold text-orange-800">광팀</p>
+                    <p class="text-3xl font-black text-orange-900">{{ totals.gwang }}</p>
+                </div>
+                <div class="w-px h-10 bg-yellow-600"></div>
+                <div class="text-center">
+                    <p class="text-xl font-bold text-blue-500">피팀</p>
+                    <p class="text-3xl font-black text-blue-500">{{ totals.pi }}</p>
+                </div>
+                <div class="w-px h-10 bg-yellow-600"></div>
+                <div class="text-center">
+                    <p class="text-xl font-bold text-green-500">띠팀</p>
+                    <p class="text-3xl font-black text-green-500">{{ totals.tti }}</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, computed } = Vue;
+
+    createApp({
+        setup() {
+            const players = ref([
+                {name:'김도현', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'김민희', handicap:12, score:0, allCover:0, team:'광'},
+                {name:'도신미', handicap:12, score:0, allCover:0, team:'광'},
+                {name:'박성진1', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'박성진2', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'석은자', handicap:12, score:0, allCover:0, team:'광'},
+                {name:'송승현', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'이부휘', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'이정호', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'이태호', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'임덕수', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'임문균', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'조재원', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'주승오', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'최향희', handicap:20, score:0, allCover:0, team:'광'},
+                {name:'한경섭', handicap:0, score:0, allCover:0, team:'광'},
+                {name:'홍문기', handicap:0, score:0, allCover:0, team:'광'}
+            ]);
+
+            const getTeamPlayers = (teamName) => {
+                return players.value.filter(p => p.team === teamName);
+            };
+
+            const totals = computed(() => {
+                let gwangSum = 0;
+                let piSum = 0;
+                let ttiSum = 0;
+
+                players.value.forEach(p => {
+                    const h = p.handicap || 0;
+                    const s = p.score || 0;
+                    const c = p.allCover || 0;
+                    const rowTotal = h + s + c;
+
+                    if (p.team === '광') gwangSum += rowTotal;
+                    else if (p.team === '피') piSum += rowTotal;
+                    else if (p.team === '띠') ttiSum += rowTotal;
+                });
+
+                return { gwang: gwangSum, pi: piSum , tti: ttiSum};
+            });
+
+            // 포커스 시 텍스트 전체 선택 (블록 씌우기)
+            const selectInput = (e) => {
+                e.target.select();
+            };
+
+            return { players, totals, getTeamPlayers, selectInput };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

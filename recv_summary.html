@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>공지사항 요약</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f5f7f9;
+            --text-dark: #333;
+            --unread-color: #ff4d4f;
+            --ongoing-color: #52c41a;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-dark);
+        }
+
+        .header {
+            margin-bottom: 30px;
+            padding: 10px 5px;
+        }
+
+        .header h1 {
+            font-size: 1.4rem;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .header span {
+            color: var(--primary-color);
+        }
+
+        .card-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-decoration: none;
+            color: inherit;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 터치 피드백 */
+        .summary-card:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #fafafa;
+        }
+
+        .card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .card-count {
+            font-size: 1.8rem;
+            font-weight: 800;
+        }
+
+        .unread .card-count { color: var(--unread-color); }
+        .ongoing .card-count { color: var(--ongoing-color); }
+
+        .arrow-icon {
+            width: 24px;
+            height: 24px;
+            fill: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><span>홍길동</span> 님, 안녕하세요.</h1>
+    </div>
+
+    <div class="card-container">
+        <a href="recv_noti_list.html?type=unread" class="summary-card unread">
+            <div class="card-info">
+                <div class="card-title">미확인</div>
+                <div class="card-count">05 <small style="font-size: 1rem; font-weight: 400;">건</small></div>
+            </div>
+            <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+        </a>
+
+        <a href="recv_noti_list.html?type=ongoing" class="summary-card ongoing">
+            <div class="card-info">
+                <div class="card-title">참여중</div>
+                <div class="card-count">12 <small style="font-size: 1rem; font-weight: 400;">건</small></div>
+            </div>
+            <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+        </a>
+    </div>
+
+</body>
+</html>
