@@ -1,52 +1,37 @@
 <?php
-/**
- * 1. 초기 설정 및 보안 체크
- */
 session_start();
 define('ROOT_PATH', dirname(__DIR__));
 
-// 로그인하지 않은 경우 로그인 페이지로 리다이렉트
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
-// DB 연결 로드
 require_once ROOT_PATH . '/src/db_connect.php';
 
 $userId   = $_SESSION['user_id'];
-$userName = $_SESSION['user_name']; // 로그인 시 저장된 사용자 이름
+$userName = $_SESSION['user_name'];
 
-/**
- * 2. 실시간 데이터 조회 (PDO 사용)
- */
 try {
-    // 1) 미확인 건수 (READ_STATUS-1:미확인, 2:참여중, 3:완료
     $stmtUnread = $pdo->prepare("SELECT COUNT(*) FROM NOTICES A, NOTICE_RECEIVERS B WHERE A.NOTICE_ID = B.NOTICE_ID AND B.USER_ID = ? AND B.READ_STATUS = '1'");
     $stmtUnread->execute([$userId]);
     $unreadCount = $stmtUnread->fetchColumn();
 
-    // 2) 참여중 건수 (status가 'ongoing'인 항목)
     $stmtOngoing = $pdo->prepare("SELECT COUNT(*) FROM NOTICES A, NOTICE_RECEIVERS B WHERE A.NOTICE_ID = B.NOTICE_ID AND B.USER_ID = ? AND B.READ_STATUS = '2'");
     $stmtOngoing->execute([$userId]);
     $ongoingCount = $stmtOngoing->fetchColumn();
     
 } catch (PDOException $e) {
-    // 에러 발생 시 로그에 기록하고 0으로 초기화
     error_log($e->getMessage());
-    
-    echo($e->getMessage());
-    
     $unreadCount = 0;
     $ongoingCount = 0;
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>공지사항 요약</title>
     <style>
         :root {
@@ -56,46 +41,60 @@ try {
             --ongoing-color: #52c41a;
         }
 
+        /* 여백 계산을 포함한 박스 모델 설정 */
+        * { box-sizing: border-box; }
+
         body {
             font-family: 'Pretendard', -apple-system, sans-serif;
             background-color: var(--bg-color);
             margin: 0;
-            padding: 40px 20px;
+            padding: 0;
+            /* 세로 스크롤 방지 핵심 설정 */
+            height: 100dvh; /* 모바일 브라우저 주소창 고려 */
+            width: 100%;
+            overflow: hidden; 
             display: flex;
             flex-direction: column;
             align-items: center; 
-            min-height: 100vh;
             justify-content: center;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 4vh; /* 고정 px 대신 vh 사용 */
         }
 
         .header h1 {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
-            margin: 0;
+            margin-top: 40px;
+            color: #555;
         }
 
+        .header h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin: 8px 0 50px 0;
+            color: #777;
+        }
+        
         .header span {
             color: var(--primary-color);
             border-bottom: 2px solid var(--primary-color);
         }
 
         .card-container {
-            width: 100%;
-            max-width: 400px;
+            width: 90%;
+            max-width: 360px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
         }
 
         .summary-card {
             background: white;
             border-radius: 20px;
-            padding: 30px 20px;
+            padding: 5vh 20px; /* 세로 여백을 화면 높이에 비례하게 조절 */
             text-decoration: none;
             color: inherit;
             box-shadow: 0 8px 15px rgba(0,0,0,0.05);
@@ -113,10 +112,10 @@ try {
         }
 
         .card-title {
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 500;
             color: #888;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
 
         .card-count {
@@ -126,8 +125,7 @@ try {
         }
 
         .card-count small {
-            font-size: 1.2rem;
-            font-weight: 600;
+            font-size: 1.5rem;
             margin-left: 4px;
         }
 
@@ -135,10 +133,11 @@ try {
         .ongoing .card-count { color: var(--ongoing-color); }
 
         .logout-btn {
-            margin-top: 30px;
-            color: #999;
+            margin-top: 5vh;
+            color: #bbb;
             text-decoration: none;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            padding: 10px;
         }
     </style>
 </head>
@@ -146,18 +145,18 @@ try {
 
     <div class="header">
         <h1><span><?= htmlspecialchars($userName) ?></span> 님, 안녕하세요!</h1>
-        <h2>공지현황을 확인하세요.</h1>
+        <h2>공지현황을 확인하세요.</h2>
     </div>
 
     <div class="card-container">
         <a href="/qi/public/recv_noti_list.php?type=unread" class="summary-card unread">
             <div class="card-title">미확인</div>
-            <div class="card-count"><?= sprintf('%02d', $unreadCount) ?><small>건</small></div>
+            <div class="card-count"><?= sprintf('%d', $unreadCount) ?><small>건</small></div>
         </a>
 
-        <a href="/qi/public/recv_noti_list.php?type=ongoing" class="summary-card ongoing">
-            <div class="card-title">참여중</div>
-            <div class="card-count"><?= sprintf('%02d', $ongoingCount) ?><small>건</small></div>
+        <a href="/qi/public/recv_noti_list.php?type=read" class="summary-card ongoing">
+            <div class="card-title">확인</div>
+            <div class="card-count"><?= sprintf('%d', $ongoingCount) ?><small>건</small></div>
         </a>
     </div>
 

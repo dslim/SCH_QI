@@ -21,9 +21,8 @@ SELECT
     A.STATUS,
     B.VALUE as status,
     (SELECT COUNT(USER_ID) FROM NOTICE_RECEIVERS WHERE NOTICE_ID = A.NOTICE_ID) as totalCount,
-    (SELECT COUNT(USER_ID) FROM NOTICE_RECEIVERS WHERE NOTICE_ID = A.NOTICE_ID AND READ_STATUS = '1') as readCount,
-    (SELECT COUNT(USER_ID) FROM NOTICE_RECEIVERS WHERE NOTICE_ID = A.NOTICE_ID AND READ_STATUS = '2') as joinCount,
-    (SELECT COUNT(USER_ID) FROM NOTICE_RECEIVERS WHERE NOTICE_ID = A.NOTICE_ID AND READ_STATUS = '3') as solveCount
+    (SELECT COUNT(USER_ID) FROM NOTICE_RECEIVERS WHERE NOTICE_ID = A.NOTICE_ID AND READ_STATUS = '1') as noReadCount,
+    (SELECT COUNT(USER_ID) FROM NOTICE_RECEIVERS WHERE NOTICE_ID = A.NOTICE_ID AND READ_STATUS = '2') as readCount
 FROM NOTICES A, CODE_MASTER B
 WHERE A.STATUS = B.CODE 
   AND B.CODE_TYPE = 'NOTICE_STATUS'
@@ -50,7 +49,7 @@ ORDER BY A.STATUS, A.REG_DATE DESC
     <style>
         body { font-family: -apple-system, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         .header { background-color: #ffffff; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
-        h2 { text-align: center; margin: 0 0 15px 0; font-size: 1.2rem; }
+        h2 { text-align: center; margin: 0 0 15px 0; font-size: 1.9rem; color: #777; }
         
         .date-filter { display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 12px; background: #f9f9f9; padding: 8px; border-radius: 8px; }
         .date-filter input { border: 1px solid #ccc; border-radius: 4px; padding: 5px; font-size: 13px; outline: none; }
@@ -65,7 +64,7 @@ ORDER BY A.STATUS, A.REG_DATE DESC
         }
         .stat-item { 
             flex: 1; /* 너비 균등 배분 */
-            font-size: 12px; 
+            font-size: 1rem; 
             padding: 8px 0; 
             text-align: center;
             border-radius: 8px; 
@@ -81,10 +80,10 @@ ORDER BY A.STATUS, A.REG_DATE DESC
             font-weight: bold; 
         }
         /* 상태별 텍스트 강조색 */
-        .stat-item.total.active { color: #333; }
+        .stat-item.total.active { color: #777; }
         .stat-item.ing.active { color: #d32f2f; }   /* 공지: Red */
         .stat-item.done.active { color: #388e3c; }  /* 완료: Green */
-        .stat-item.drop.active { color: #757575; }  /* 폐기: Gray */
+        .stat-item.drop.active { color: #757575; }  /* 취소: Gray */
         /* ---------------------------------- */
 
         .container { padding: 15px; }
@@ -97,7 +96,7 @@ ORDER BY A.STATUS, A.REG_DATE DESC
         .status { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
         .status.공지 { background: #ffebee; color: #d32f2f; } 
         .status.완료 { background: #e8f5e9; color: #388e3c; }
-        .status.폐기 { background: #eeeeee; color: #757575; }
+        .status.취소 { background: #eeeeee; color: #757575; }
         
         .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #333; }
         .content { font-size: 14px; color: #666; margin-bottom: 12px; line-height: 1.4; }
@@ -116,18 +115,12 @@ ORDER BY A.STATUS, A.REG_DATE DESC
 
 <div id="app">
     <div class="header">
-        <h2>공지사항 관리</h2>
-        <div class="date-filter">
-            <span style="font-size:12px; color:#666;">조회기간</span>
-            <input type="date" v-model="startDate">
-            <span>~</span>
-            <input type="date" v-model="endDate">
-        </div>
+        <h2>공지현황</h2>
         <div class="header-stats">
-            <div class="stat-item total" :class="{active: currentFilter === 'all'}" @click="currentFilter = 'all'">전체 {{ filteredByDate.length }}</div>
-            <div class="stat-item ing" :class="{active: currentFilter === '공지'}" @click="currentFilter = '공지'">공지 {{ counts.ing }}</div>
-            <div class="stat-item done" :class="{active: currentFilter === '완료'}" @click="currentFilter = '완료'">완료 {{ counts.done }}</div>
-            <div class="stat-item drop" :class="{active: currentFilter === '폐기'}" @click="currentFilter = '폐기'">폐기 {{ counts.drop }}</div>
+            <div class="stat-item total" :class="{active: currentFilter === 'all'}" @click="currentFilter = 'all'">전체 ({{ filteredByDate.length }})</div>
+            <div class="stat-item ing" :class="{active: currentFilter === '공지'}" @click="currentFilter = '공지'">공지 ({{ counts.ing }})</div>
+            <div class="stat-item done" :class="{active: currentFilter === '완료'}" @click="currentFilter = '완료'">완료 ({{ counts.done }})</div>
+            <div class="stat-item drop" :class="{active: currentFilter === '취소'}" @click="currentFilter = '취소'">취소 ({{ counts.drop }})</div>
         </div>
     </div>
 
@@ -146,16 +139,12 @@ ORDER BY A.STATUS, A.REG_DATE DESC
                     <span class="stat-value">{{ item.totalCount }}</span>
                 </div>
                 <div class="stat-badge">
-                    <span class="stat-label">읽음</span>
-                    <span class="stat-value">{{ item.readCount }}</span>
+                    <span class="stat-label">미확인</span>
+                    <span class="stat-value">{{ item.noReadCount }}</span>
                 </div>
                 <div class="stat-badge">
-                    <span class="stat-label">참여</span>
-                    <span class="stat-value" style="color: #1976d2;">{{ item.joinCount }}</span>
-                </div>
-                <div class="stat-badge">
-                    <span class="stat-label">해결</span>
-                    <span class="stat-value" style="color: #388e3c;">{{ item.solveCount }}</span>
+                    <span class="stat-label">확인</span>
+                    <span class="stat-value" style="color: #1976d2;">{{ item.readCount }}</span>
                 </div>
             </div>
 
@@ -183,12 +172,22 @@ ORDER BY A.STATUS, A.REG_DATE DESC
             const today = new Date().toISOString().split('T')[0];
             const startDate = ref('');
             const endDate = ref(today);
-            const currentFilter = ref('all');
+            const currentFilter = ref('all'); // 기본값은 'all'
 
             onMounted(() => {
+                // 1. 날짜 초기화 (한 달 전)
                 const d = new Date();
                 d.setMonth(d.getMonth() - 1);
                 startDate.value = d.toISOString().split('T')[0];
+
+                // 2. URL 파라미터 읽기 (?tab=공지 또는 ?tab=완료)
+                const urlParams = new URLSearchParams(window.location.search);
+                const tabParam = urlParams.get('tab');
+
+                // 파라미터 값이 유효한 경우(공지, 완료, 취소 등) 해당 필터 적용
+                if (tabParam && ['공지', '완료', '취소'].includes(tabParam)) {
+                    currentFilter.value = tabParam;
+                }
             });
 
             const filteredByDate = computed(() => {
@@ -200,7 +199,7 @@ ORDER BY A.STATUS, A.REG_DATE DESC
             const counts = computed(() => ({
                 ing: filteredByDate.value.filter(i => i.status === '공지').length,
                 done: filteredByDate.value.filter(i => i.status === '완료').length,
-                drop: filteredByDate.value.filter(i => i.status === '폐기').length
+                drop: filteredByDate.value.filter(i => i.status === '취소').length
             }));
 
             const finalFilteredList = computed(() => {
@@ -209,7 +208,7 @@ ORDER BY A.STATUS, A.REG_DATE DESC
             });
 
             const goToDetail = (id) => {
-                window.location.href = id ? `noti_mng_detail.php?id=${id}` : 'noti_mng_reg.php';
+                window.location.href = id ? `noti_mng_detail.php?id=${id}` : 'noti_mng_detail.php';
             };
 
             return { 

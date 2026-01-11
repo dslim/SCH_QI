@@ -15,21 +15,18 @@ $userName = $_SESSION['user_name'];
 try {
     /**
      * 한 번의 쿼리로 모든 상태 카운트 조회
-     * 1: 미확인, 2: 참여중, 3: 해결됨
+     * 1: 미확인, 2: 참여중, 3: 완료됨
      */
     $sql = "SELECT 
-                COUNT(CASE WHEN B.READ_STATUS = '1' THEN 1 END) as unread_cnt,
-                COUNT(CASE WHEN B.READ_STATUS = '2' THEN 1 END) as ongoing_cnt,
-                COUNT(CASE WHEN B.READ_STATUS = '3' THEN 1 END) as solved_cnt
-            FROM NOTICE_RECEIVERS B
-/*            WHERE B.USER_ID = ?*/";
-            
+                COUNT(CASE WHEN STATUS = '1' THEN 1 END) as ongoing_cnt,
+                COUNT(CASE WHEN STATUS = '3' THEN 1 END) as solved_cnt
+            FROM NOTICES";
+
     $stmt = $pdo->prepare($sql);
 //    $stmt->execute([$userId]);
     $stmt->execute();
     $counts = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $unreadCount  = $counts['unread_cnt'] ?? 0;
     $ongoingCount = $counts['ongoing_cnt'] ?? 0;
     $solvedCount  = $counts['solved_cnt'] ?? 0;
     
@@ -95,10 +92,10 @@ try {
         .summary-card:active { transform: scale(0.97); background-color: #fcfcfc; }
 
         .card-info { display: flex; flex-direction: column; }
-        .card-title { font-size: 1.4rem; font-weight: 600; color: #666; }
+        .card-title { font-size: 1.8rem; font-weight: 600; color: #666; }
         
         .card-count { font-size: 2.2rem; font-weight: 800; }
-        .card-count small { font-size: 1.1rem; margin-left: 2px; }
+        .card-count small { font-size: 1.8rem; margin-left: 2px; }
 
         /* 상태별 색상 */
         .unread .card-count { color: var(--unread-color); }
@@ -127,29 +124,21 @@ try {
     </div>
 
     <div class="card-container">
-        <a href="noti_mng_list.php?tab=미확인" class="summary-card unread">
+        <a href="noti_mng_list.php?tab=공지" class="summary-card ongoing">
             <div class="card-info">
-                <div class="card-title">미확인 공지</div>
-            </div>
-            <div class="card-count"><?= sprintf('%01d', $unreadCount) ?><small>건</small></div>
-        </a>
-
-        <a href="noti_mng_list.php?tab=참여중" class="summary-card ongoing">
-            <div class="card-info">
-                <div class="card-title">참여중인 공지</div>
+                <div class="card-title">공지</div>
             </div>
             <div class="card-count"><?= sprintf('%01d', $ongoingCount) ?><small>건</small></div>
         </a>
 
-        <a href="noti_mng_list.php?tab=해결됨" class="summary-card solved">
+        <a href="noti_mng_list.php?tab=완료" class="summary-card solved">
             <div class="card-info">
-                <div class="card-title">해결된 공지</div>
+                <div class="card-title">완료</div>
             </div>
             <div class="card-count"><?= sprintf('%01d', $solvedCount) ?><small>건</small></div>
         </a>
     </div>
-
-    <a href="noti_mng_list.php?tab=all" class="view-all">전체 공지현황 보기</a>
+    
     <a href="logout.php" class="logout-btn">로그아웃</a>
 
 </body>

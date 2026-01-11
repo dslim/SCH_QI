@@ -18,28 +18,53 @@ if (!$noticeId) {
     exit;
 }
 
-// 2. [POST 요청 처리] 상태 업데이트 로직
+// 2. [POST 요청 처리] 상태 업데이트 및 전체 완료 체크 로직
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $newStatusText = $_POST['status_text'] ?? '';
     
-    // 화면 텍스트를 DB 상태 코드(1, 2, 3)로 매핑
-    $statusMap = ['미확인' => '1', '참여중' => '2', '해결됨' => '3'];
+    // 화면 텍스트를 DB 상태 코드(1: 미확인, 2: 확인)로 매핑
+    $statusMap = ['미확인' => '1', '확인' => '2'];
     $statusCode = $statusMap[$newStatusText] ?? null;
 
     if ($statusCode) {
         try {
-            // 현재 상태보다 낮은 단계로 업데이트하는지 확인하는 로직을 쿼리에 추가 가능
+            // 트랜잭션 시작
+            $pdo->beginTransaction();
+
+            // [A] 수신자 개인의 상태 업데이트
             $updateSql = "UPDATE NOTICE_RECEIVERS 
                           SET READ_STATUS = ?, UPDATE_DATE = NOW() 
                           WHERE NOTICE_ID = ? AND USER_ID = ?";
             $stmtUpdate = $pdo->prepare($updateSql);
             $stmtUpdate->execute([$statusCode, $noticeId, $userId]);
+
+            // [B] 모든 수신자가 '확인(2)' 상태인지 체크
+            // 아직 '미확인(1)'인 레코드가 있는지 확인
+            $checkSql = "SELECT COUNT(*) FROM NOTICE_RECEIVERS WHERE NOTICE_ID = ? AND READ_STATUS != '2'";
+            $stmtCheck = $pdo->prepare($checkSql);
+            $stmtCheck->execute([$noticeId]);
+            $remainingCount = $stmtCheck->fetchColumn();
+
+            // [C] 미확인 인원이 0명이라면 공지사항 본문의 상태를 '완료(3)'로 변경
+            if ($remainingCount == 0) {
+                $finishSql = "UPDATE NOTICES SET STATUS = '3' WHERE NOTICE_ID = ?";
+                $stmtFinish = $pdo->prepare($finishSql);
+                $stmtFinish->execute([$noticeId]);
+            }
+
+            // 모든 쿼리가 성공하면 커밋
+            $pdo->commit();
             
-            // 성공 시 리다이렉트 (새로고침 방지)
             header("Location: recv_noti_detail.php?id=" . $noticeId . "&success=1");
             exit;
         } catch (PDOException $e) {
+            // 에러 발생 시 롤백
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             error_log($e->getMessage());
+            echo "<script>alert('처리 중 오류가 발생했습니다.'); history.back();</script>";
+            exit;
         }
     }
 }
@@ -59,8 +84,7 @@ try {
         exit;
     }
 
-    // DB 상태 코드를 화면용 텍스트로 변환
-    $statusMapping = ['1' => '미확인', '2' => '참여중', '3' => '해결됨'];
+    $statusMapping = ['1' => '미확인', '2' => '확인'];
     $currentStatus = $statusMapping[$row['READ_STATUS']] ?? '미확인';
 
     $notiData = [
@@ -85,7 +109,6 @@ try {
     <title>공지 상세 보기</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        /* CSS 스타일은 동일하게 유지 (생략 가능) */
         body { font-family: -apple-system, sans-serif; background-color: #f5f7fa; margin: 0; padding: 0; }
         .header { background-color: #ffffff; padding: 15px; border-bottom: 1px solid #ddd; display: flex; align-items: center; position: sticky; top: 0; z-index: 100; }
         .back-btn { font-size: 20px; background: none; border: none; cursor: pointer; margin-right: 10px; }
@@ -101,7 +124,6 @@ try {
         .opt-btn { flex: 1; padding: 12px 5px; border-radius: 8px; border: 1px solid #ddd; background: #fff; color: #ccc; font-size: 13px; font-weight: bold; cursor: pointer; text-align: center; }
         .opt-btn.active-unread { border-color: #ff4d4d; color: #ff4d4d; background: #fff5f5; }
         .opt-btn.active-reading { border-color: #1976d2; color: #1976d2; background: #e3f2fd; }
-        .opt-btn.active-solved { border-color: #388e3c; color: #388e3c; background: #e8f5e9; }
         .opt-btn.disabled { background: #f8f9fa; color: #eee; border-color: #eee; cursor: not-allowed; text-decoration: line-through; }
         .bottom-actions { position: fixed; bottom: 0; left: 0; right: 0; padding: 15px 20px; background: #fff; border-top: 1px solid #eee; }
         .btn-save { width: 100%; padding: 15px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; background-color: #007bff; color: white; }
@@ -109,7 +131,6 @@ try {
         .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-bottom: 10px; }
         .status-unread { background: #ffe3e3; color: #ff4d4d; }
         .status-reading { background: #e3f2fd; color: #1976d2; }
-        .status-solved { background: #e8f5e9; color: #388e3c; }
     </style>
 </head>
 <body>
@@ -141,7 +162,7 @@ try {
             <div class="status-selector">
                 <span class="label">나의 처리 상태 변경 (이전 단계 변경 불가)</span>
                 <div class="status-options">
-                    <button v-for="step in ['미확인', '참여중', '해결됨']" 
+                    <button v-for="step in ['미확인', '확인']" 
                             :key="step"
                             class="opt-btn" 
                             :class="[getOptionActiveClass(step), {'disabled': isStepDisabled(step)}]"
@@ -156,9 +177,9 @@ try {
 
     <div class="bottom-actions" v-if="noti">
         <button class="btn-save" 
-                :disabled="noti.myStatus === tempStatus || noti.myStatus === '해결됨'" 
+                :disabled="noti.myStatus === tempStatus || noti.myStatus === '확인'" 
                 @click="confirmSave">
-            {{ noti.myStatus === '해결됨' ? '최종 완료된 공지입니다' : '상태 저장하기' }}
+            {{ noti.myStatus === '확인' ? '확인 완료된 공지입니다' : '상태 저장하기' }}
         </button>
     </div>
 </div>
@@ -168,36 +189,32 @@ try {
 
     createApp({
         setup() {
-            // PHP에서 초기 데이터 로드
             const noti = ref(<?php echo json_encode($notiData, JSON_UNESCAPED_UNICODE); ?>);
             const tempStatus = ref(noti.value.myStatus);
-            const statusWeight = { '미확인': 1, '참여중': 2, '해결됨': 3 };
+            const statusWeight = { '미확인': 1, '확인': 2 };
 
-            // 이전 단계 비활성화 로직
             const isStepDisabled = (stepName) => {
                 return statusWeight[stepName] < statusWeight[noti.value.myStatus];
             };
 
             const getStatusClass = (status) => {
-                const map = { '미확인': 'status-unread', '참여중': 'status-reading', '해결됨': 'status-solved' };
+                const map = { '미확인': 'status-unread', '확인': 'status-reading' };
                 return map[status];
             };
 
             const getOptionActiveClass = (step) => {
                 if (tempStatus.value !== step) return '';
-                const map = { '미확인': 'active-unread', '참여중': 'active-reading', '해결됨': 'active-solved' };
+                const map = { '미확인': 'active-unread', '확인': 'active-reading' };
                 return map[step];
             };
 
             const confirmSave = () => {
                 if (confirm(`상태를 [${tempStatus.value}]으로 저장하시겠습니까?\n저장 후에는 이전 단계로 되돌릴 수 없습니다.`)) {
-                    // 폼을 이용해 서버에 전송
                     document.getElementById('saveForm').submit();
                 }
             };
 
             const goBack = () => {
-                // 목록 페이지(list.php)로 돌아가거나 뒤로 가기
                 location.href = 'recv_noti_list.php'; 
             };
 

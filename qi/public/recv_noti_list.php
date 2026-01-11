@@ -18,7 +18,7 @@ $userName = $_SESSION['user_name']; // 로그인 시 저장된 사용자 이름
 try {
     // DB 쿼리 예시: 
     $sql = "SELECT 
-  A.NOTICE_ID, A.TITLE, IF(CHAR_LENGTH(A.CONTENT) > 100, CONCAT(LEFT(A.CONTENT, 100), '...'), A.CONTENT) AS CONTENT, A.REG_USER_ID, A.STATUS, A.REG_DATE, A.UPDATE_DATE, B.READ_STATUS, B.OPEN_DATE, B.UPDATE_DATE, B.COMPLT_DATE 
+  A.NOTICE_ID, A.TITLE, IF(CHAR_LENGTH(A.CONTENT) > 100, CONCAT(LEFT(A.CONTENT, 100), '...'), A.CONTENT) AS CONTENT, A.REG_USER_ID, B.READ_STATUS AS STATUS, A.REG_DATE, A.UPDATE_DATE, B.READ_STATUS, B.OPEN_DATE, B.UPDATE_DATE, B.COMPLT_DATE 
   FROM NOTICES A, NOTICE_RECEIVERS B 
   WHERE A.NOTICE_ID = B.NOTICE_ID AND B.USER_ID = ?
   ORDER BY B.READ_STATUS, A.REG_DATE DESC";
@@ -31,8 +31,7 @@ try {
         $statusValue = (string)$row['READ_STATUS'];
         switch ($statusValue) {
             case '1': $statusText = '미확인'; break;
-            case '2': $statusText = '참여중'; break;
-            case '3': $statusText = '해결됨'; break;
+            case '2': $statusText = '확인'; break;
             default:  $statusText = '미확인'; // 예외 케이스 처리
         }
 
@@ -68,7 +67,7 @@ try {
         body { font-family: -apple-system, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         .header { background-color: #ffffff; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
         .user-profile { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .user-name { font-weight: bold; color: #007bff; }
+        .user-name { font-weight: bold; color: #777; font-size: 1.3rem; margin-top:20px;}
         h2 { margin: 0; font-size: 1.2rem; text-align: center; }
 
         .filter-bar { display: flex; justify-content: space-around; background: #fff; padding: 10px 0; border-bottom: 1px solid #eee; }
@@ -105,12 +104,11 @@ try {
     <div class="header">
         <div class="user-profile">
             <span class="user-name">{{ loginUser }} 님의 공지현황입니다.</span>
-            <span style="font-size: 12px; color: #999;">{{ today }}</span>
         </div>
     </div>
 
     <div class="filter-bar">
-        <div v-for="tab in ['all', '미확인', '참여중', '해결됨']" :key="tab" 
+        <div v-for="tab in ['all', '미확인', '확인']" :key="tab" 
              class="filter-tab" :class="{active: currentTab === tab}" @click="currentTab = tab">
             {{ tab === 'all' ? '전체' : tab }}
         </div>
@@ -130,8 +128,7 @@ try {
             <!--
             <div class="action-area">
                 <div class="status-box" :class="{'active-unread': item.myStatus === '미확인'}">미확인</div>
-                <div class="status-box" :class="{'active-read': item.myStatus === '참여중'}">참여중</div>
-                <div class="status-box" :class="{'active-solved': item.myStatus === '해결됨'}">해결됨</div>
+                <div class="status-box" :class="{'active-read': item.myStatus === '확인'}">확인</div>
             </div>
             -->
 
@@ -148,25 +145,36 @@ try {
 </div>
 
 <script>
-    const { createApp, ref, computed } = Vue;
+    const { createApp, ref, computed, onMounted } = Vue;
 
     createApp({
         setup() {
-            // PHP에서 데이터를 안전하게 JavaScript로 전달
+            // PHP 데이터 파싱
             const loginUser = ref('<?php echo $userName; ?>');
             const initialData = <?php echo $notifications_json; ?>;
-            
-            const today = new Date().toLocaleDateString();
-            const currentTab = ref('all');
             const myNotifications = ref(initialData);
 
+            // 1. URL 파라미터(type)에 따른 초기 탭 설정 로직
+            const getInitialTab = () => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const typeParam = urlParams.get('type'); // 'unread' 또는 'read'
+
+                if (typeParam === 'unread') return '미확인';
+                if (typeParam === 'read') return '확인';
+                return 'all'; // 파라미터가 없거나 다를 경우 '전체'
+            };
+
+            // 2. 초기값 설정
+            const currentTab = ref(getInitialTab());
+
+            // 탭 변경 시 필터링 로직
             const myFilteredNoti = computed(() => {
                 if (currentTab.value === 'all') return myNotifications.value;
                 return myNotifications.value.filter(n => n.myStatus === currentTab.value);
             });
 
             const getStatusClass = (status) => {
-                const map = { '미확인': 'unread', '참여중': 'read', '해결됨': 'solved' };
+                const map = { '미확인': 'unread', '확인': 'read' };
                 return map[status] || '';
             };
 
@@ -175,7 +183,7 @@ try {
             };
 
             return {
-                loginUser, today, currentTab,
+                loginUser, currentTab,
                 myFilteredNoti, getStatusClass, goToDetail
             };
         }

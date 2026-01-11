@@ -1,8 +1,6 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-    <!--<meta http-equiv="refresh" content="0; url=qi/public/login.php">-->
-    <meta http-equiv="refresh" content="0; url=index_bk.html">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!--<link rel="manifest" href="manifest.json">-->
@@ -76,6 +74,40 @@
     </style>
 </head>
 <body>
-    <p>로그인 페이지로 이동 중입니다...</p>
+
+<div class="login-container">
+    <h2>LOGIN</h2>
+    <form id="loginForm">
+        <div class="input-group">
+            <input type="text" id="user_id" placeholder="아이디를 입력하세요" required>
+        </div>
+        <div class="input-group">
+            <input type="password" id="password" placeholder="비밀번호를 입력하세요" required>
+        </div>
+        <button type="submit">로그인</button>
+    </form>
+</div>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // 폼 제출 방지
+
+        const userId = document.getElementById('user_id').value;
+        const errorMsg = document.getElementById('errorMessage');
+
+        if (userId === "admin") {
+            // 1. admin 인 경우
+            window.location.href = "noti_mng_list.html";
+        } else if (userId === "user") {
+            // 2. user 인 경우
+            window.location.href = "recv_noti_list.html";
+        } else {
+            // 그 외의 경우 에러 메시지 출력
+            errorMsg.style.display = "block";
+            errorMsg.innerText = "등록되지 않은 사용자입니다.";
+        }
+    });
+</script>
+
 </body>
 </html>
